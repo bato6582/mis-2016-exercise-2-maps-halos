@@ -3,6 +3,8 @@ package com.appone.appone;
 import android.Manifest;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.location.Location;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -11,8 +13,14 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -21,6 +29,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     int locationCount;
     String title_ = "";
     String snippet_ = "";
+    final List<Circle> circleList = new ArrayList<>();
 
 
 
@@ -88,6 +97,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .title(title_)
                         .snippet(snippet_)
                         .position(lalo));
+
+                // Instantiates a new CircleOptions object and defines the center and radius
+                CircleOptions circleOptions = new CircleOptions()
+                        .center(lalo)
+                        .radius(1000)
+                        .strokeColor(Color.RED);// In meters
+
+                // Get back the mutable Circle
+                mMap.addCircle(circleOptions);
             }
 
         }
@@ -111,6 +129,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .snippet(strText)
                         .position(latLng));
 
+                // Instantiates a new CircleOptions object and defines the center and radius
+                CircleOptions circleOptions = new CircleOptions()
+                        .center(latLng)
+                        .radius(1000)
+                        .strokeColor(Color.RED);// In meters
+
+                // Get back the mutable Circle
+                Circle circle = mMap.addCircle(circleOptions);
+                circleList.add(circle);
+
                 locationCount++;
 
                 /** Opening the editor object to write data to sharedPreferences */
@@ -131,7 +159,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 // Saving the values stored in the shared preferences
                 editor.commit();
+            }
+        });
 
+
+        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+            @Override
+            public void onCameraChange(CameraPosition cameraPosition) {
+
+                // Iterating through all circles
+                for (Circle circle : circleList) {
+                    LatLng cameraPos = cameraPosition.target;
+                    LatLng markerPos = circle.getCenter();
+
+                    // http://stackoverflow.com/questions/2741403/get-the-distance-between-two-geo-points
+                    Location loc1 = new Location("");
+                    loc1.setLatitude(cameraPos.latitude);
+                    loc1.setLongitude(cameraPos.longitude);
+
+                    Location loc2 = new Location("");
+                    loc2.setLatitude(markerPos.latitude);
+                    loc2.setLongitude(markerPos.longitude);
+
+                    float zoom = cameraPosition.zoom;
+
+                    float distanceInMeters = loc1.distanceTo(loc2);
+                    if (distanceInMeters < (1000 * zoom)) {
+                        circle.setRadius(0);
+                    } else {
+                        circle.setRadius(distanceInMeters - (1000 * zoom));
+                    }
+                }
 
 
             }
