@@ -9,6 +9,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.widget.EditText;
+import android.widget.Toast;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -49,18 +51,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-
         //http://stackoverflow.com/questions/35868807/saving-google-map-markers-into-sharedpreferences-in-android-studios
 
         // Opening the sharedPreferences object
         sharedPreferences = getSharedPreferences("location", 0);
 
-
         //Deleting all markers
         //SharedPreferences.Editor editor = sharedPreferences.edit();
         //editor.clear().commit();
-
-
 
         // Getting number of locations already stored
         locationCount = sharedPreferences.getInt("locationCount", 0);
@@ -81,12 +79,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 snippet_ = sharedPreferences.getString("snippet" +i, "0");
 
-                // Getting the latitude of the i-th location
+                // Getting the latitude and longitude of the i-th location
                 lat = sharedPreferences.getString("lat" + i, "0");
-
-                // Getting the longitude of the i-th location
                 lng = sharedPreferences.getString("lng" + i, "0");
-
 
                 double lat3 = Double.valueOf(lat).doubleValue();
                 double lng3 = Double.valueOf(lng).doubleValue();
@@ -105,7 +100,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         .strokeColor(Color.RED);// In meters
 
                 // Get back the mutable Circle
-                mMap.addCircle(circleOptions);
+                Circle circle = mMap.addCircle(circleOptions);
+                circleList.add(circle);
             }
 
         }
@@ -115,7 +111,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
 
-
+        // add a marker if there is a long lick input
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
 
             @Override
@@ -162,7 +158,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-
+        // when map is moved, update the circles around the markers -> halo technique
         mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
             @Override
             public void onCameraChange(CameraPosition cameraPosition) {
@@ -184,10 +180,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     float zoom = cameraPosition.zoom;
 
                     float distanceInMeters = loc1.distanceTo(loc2);
-                    if (distanceInMeters < (1000 * zoom)) {
+                    if (distanceInMeters < (1000)) {
                         circle.setRadius(0);
                     } else {
-                        circle.setRadius(distanceInMeters - (1000 * zoom));
+                        circle.setRadius(distanceInMeters - (1000));
                     }
                 }
 
@@ -202,10 +198,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // TODO: Consider calling
             //    ActivityCompat#requestPermissions
             // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            // public void onRequestPermissionsResult(int requestCode, String[] permissions,
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
+            Toast.makeText(getApplicationContext(), "No Permission", Toast.LENGTH_LONG).show();
             return;
         }
         mMap.setMyLocationEnabled(true);
