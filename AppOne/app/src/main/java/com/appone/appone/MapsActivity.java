@@ -1,6 +1,7 @@
 package com.appone.appone;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
@@ -8,10 +9,9 @@ import android.location.Location;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.Toast;
-
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -19,10 +19,13 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.VisibleRegion;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Vector;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -32,7 +35,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     String title_ = "";
     String snippet_ = "";
     final List<Circle> circleList = new ArrayList<>();
-
+    final List<Circle> circleList2 = new ArrayList<>();
 
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,20 +48,32 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    public static void hideSoftKeyboard(MapsActivity activity) {
+        // http://developer.android.com/reference/android/view/inputmethod/InputMethodManager.html
+        InputMethodManager inputMethodManager = (InputMethodManager)  activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(activity.getCurrentFocus().getWindowToken(), 0);
+    }
 
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        //http://stackoverflow.com/questions/35868807/saving-google-map-markers-into-sharedpreferences-in-android-studios
+        Toast.makeText(getApplicationContext(), "Type in your description and do a longclick at a place to add your text there.",
+                Toast.LENGTH_LONG).show();
+
+
+        //source: http://stackoverflow.com/questions/35868807/saving-google-map-markers-into-sharedpreferences-in-android-studios
 
         // Opening the sharedPreferences object
         sharedPreferences = getSharedPreferences("location", 0);
 
+
         //Deleting all markers
         //SharedPreferences.Editor editor = sharedPreferences.edit();
         //editor.clear().commit();
+
+
 
         // Getting number of locations already stored
         locationCount = sharedPreferences.getInt("locationCount", 0);
@@ -71,20 +86,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             String lng = "";
 
 
+
             // Iterating through all the locations stored
             for (int i = 0; i < locationCount; i++) {
-
 
                 title_ = sharedPreferences.getString("title" +i, "0");
 
                 snippet_ = sharedPreferences.getString("snippet" +i, "0");
 
-                // Getting the latitude and longitude of the i-th location
+                // Getting the latitude of the i-th location
                 lat = sharedPreferences.getString("lat" + i, "0");
+
+                // Getting the longitude of the i-th location
                 lng = sharedPreferences.getString("lng" + i, "0");
+
 
                 double lat3 = Double.valueOf(lat).doubleValue();
                 double lng3 = Double.valueOf(lng).doubleValue();
+
 
                 LatLng lalo = new LatLng(lat3,lng3);
 
@@ -96,26 +115,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // Instantiates a new CircleOptions object and defines the center and radius
                 CircleOptions circleOptions = new CircleOptions()
                         .center(lalo)
-                        .radius(1000)
-                        .strokeColor(Color.RED);// In meters
+                        .radius(0)
+                        .strokeColor(Color.RED);
+
 
                 // Get back the mutable Circle
                 Circle circle = mMap.addCircle(circleOptions);
                 circleList.add(circle);
+                //mMap.moveCamera(CameraUpdateFactory.newLatLng(lalo));
+
+
+
             }
 
         }
 
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
 
-        // add a marker if there is a long lick input
         mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+
 
             @Override
             public void onMapLongClick(LatLng latLng) {
+
+                hideSoftKeyboard(MapsActivity.this);
 
                 EditText text_ = (EditText) findViewById(R.id.editText);
                 String strText = text_.getText().toString();
@@ -128,16 +150,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 // Instantiates a new CircleOptions object and defines the center and radius
                 CircleOptions circleOptions = new CircleOptions()
                         .center(latLng)
-                        .radius(1000)
+                        .radius(0)
                         .strokeColor(Color.RED);// In meters
 
                 // Get back the mutable Circle
                 Circle circle = mMap.addCircle(circleOptions);
+
                 circleList.add(circle);
 
                 locationCount++;
 
-                /** Opening the editor object to write data to sharedPreferences */
+                // Opening the editor to write data to sharedPreferences
                 SharedPreferences.Editor editor = sharedPreferences.edit();
 
                 editor.putString("title" + Integer.toString((locationCount - 1)), "Marker description");
@@ -158,7 +181,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        // when map is moved, update the circles around the markers -> halo technique
+
         mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
             @Override
             public void onCameraChange(CameraPosition cameraPosition) {
@@ -169,25 +192,101 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     LatLng markerPos = circle.getCenter();
 
                     // http://stackoverflow.com/questions/2741403/get-the-distance-between-two-geo-points
-                    Location loc1 = new Location("");
-                    loc1.setLatitude(cameraPos.latitude);
-                    loc1.setLongitude(cameraPos.longitude);
 
-                    Location loc2 = new Location("");
-                    loc2.setLatitude(markerPos.latitude);
-                    loc2.setLongitude(markerPos.longitude);
+                    Location marker_loc = new Location("");
+                    marker_loc.setLatitude(markerPos.latitude);
+                    marker_loc.setLongitude(markerPos.longitude);
 
-                    float zoom = cameraPosition.zoom;
 
-                    float distanceInMeters = loc1.distanceTo(loc2);
-                    if (distanceInMeters < (1000)) {
+
+                    VisibleRegion vr = mMap.getProjection().getVisibleRegion();
+                    double left = vr.latLngBounds.southwest.longitude;
+                    double top = vr.latLngBounds.northeast.latitude;
+                    double right = vr.latLngBounds.northeast.longitude;
+                    double bottom = vr.latLngBounds.southwest.latitude;
+
+                    Location center = new Location("center");
+                    center.setLatitude(vr.latLngBounds.getCenter().latitude);
+                    //center.setLongitude(vr.latLngBounds.getCenter().longitude);
+
+                    Location middleLeftLocation = new Location("middleLeft");
+                    middleLeftLocation.setLatitude(center.getLatitude());
+                    middleLeftLocation.setLongitude(left);
+
+                    Location middleRightLocation = new Location("middleRight");
+                    middleRightLocation.setLatitude(center.getLatitude());
+                    middleRightLocation.setLongitude(right);
+
+                    Location middleTopLocation = new Location("middleTop");
+                    middleTopLocation.setLatitude(top);
+                    middleTopLocation.setLongitude(center.getLongitude());
+
+                    Location middleBottomLocation = new Location("middleBottom");
+                    middleBottomLocation.setLatitude(bottom);
+                    middleBottomLocation.setLongitude(center.getLongitude());
+
+                    //source: https://recalll.co/app/?q=How%20to%20get%20Latitude%2FLongitude%20span%20in%20Google%20Map%20V2%20for%20Android%20-%20Stack%20Overflow
+
+                    // Get the bounds for the visible region on the display
+                    LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
+
+
+                    //http://stackoverflow.com/questions/20422701/retrieve-distance-from-visible-part-of-google-map
+                    float height = middleTopLocation.distanceTo(middleBottomLocation);
+
+
+                    if(bounds.contains(markerPos)){
                         circle.setRadius(0);
-                    } else {
-                        circle.setRadius(distanceInMeters - (1000));
+                    }else if(circle.getRadius() <= (height/2)){
+
+                        Vector<Location> middle_locations = new Vector<Location>();
+
+                        middle_locations.add(middleLeftLocation);
+                        middle_locations.add(middleRightLocation);
+                        middle_locations.add(middleTopLocation);
+                        middle_locations.add(middleBottomLocation);
+
+                        float distanceClosest = middleLeftLocation.distanceTo(marker_loc);
+                        Location Closest = middleLeftLocation;
+                        Location BorderLocation = new Location("BorderLocation");
+
+                        for (int i = 1; i < 4; i++) {
+
+                            if (middle_locations.get(i).distanceTo(marker_loc) < distanceClosest) {
+
+                                distanceClosest = middle_locations.get(i).distanceTo(marker_loc);
+                                Closest = middle_locations.get(i);
+                            }
+                        }
+
+                        // Finding the closest middle location of the border to the marker
+
+
+                        if (Closest == middleLeftLocation) {
+
+                            BorderLocation.setLatitude(markerPos.latitude);
+                            BorderLocation.setLongitude(left);
+                        } else if (Closest == middleRightLocation) {
+
+                            BorderLocation.setLatitude(markerPos.latitude);
+                            BorderLocation.setLongitude(right);
+                        } else if (Closest == middleTopLocation) {
+
+                            BorderLocation.setLatitude(top);
+                            BorderLocation.setLongitude(markerPos.longitude);
+                        } else if (Closest == middleBottomLocation) {
+
+                            BorderLocation.setLatitude(bottom);
+                            BorderLocation.setLongitude(markerPos.longitude);
+                        }
+
+
+                        float newRadiusDis = marker_loc.distanceTo(BorderLocation);
+                        circle.setRadius(newRadiusDis+800000); //setting the radius to the border plus a bit more
+                    }else{
+                        circle.setRadius(0);
                     }
                 }
-
-
             }
         });
 
