@@ -35,7 +35,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     String title_ = "";
     String snippet_ = "";
     final List<Circle> circleList = new ArrayList<>();
-    final List<Circle> circleList2 = new ArrayList<>();
 
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -239,7 +238,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         circle.setRadius(0);
                     }else if(circle.getRadius() <= (height/2)){
 
-                        Vector<Location> middle_locations = new Vector<Location>();
+                        Vector<Location> middle_locations = new Vector<>();
 
                         middle_locations.add(middleLeftLocation);
                         middle_locations.add(middleRightLocation);
